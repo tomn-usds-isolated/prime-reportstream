@@ -863,7 +863,7 @@
         receivingApplicationOID: 2.16.840.1.113883.3.33.4.2.2
         receivingFacilityName: WEDSS
         receivingFacilityOID: 2.16.840.1.113883.3.33
-        convertTimestampToDateTime: OBR-7, OBR-22
+        convertTimestampToDateTime: OBR-7-1, OBR-22-1
         usePid14ForPatientEmail: true
       transport:
         type: SFTP
