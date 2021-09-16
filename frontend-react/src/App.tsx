@@ -1,9 +1,9 @@
 import "./App.css";
-import { Home } from "./pages/Home";
+import { Home } from "./pages/home/Home";
 import { ReportStreamFooter } from "./components/ReportStreamFooter";
-import Daily from "./pages/Daily/Daily";
-import { HowItWorks } from "./pages/HowItWorks";
-import { Details } from "./pages/Details";
+import Daily from "./pages/daily/Daily";
+import { HowItWorks } from "./pages/how-it-works/HowItWorks";
+import { Details } from "./pages/details/Details";
 import { Login } from "./pages/Login";
 import { TermsOfService } from "./pages/TermsOfService";
 import { GovBanner } from "@trussworks/react-uswds";
@@ -34,7 +34,7 @@ const App = () => {
         // check if the user would have any data to receive via their organizations from the okta claim
         // direct them to the /upload page if they do not have an organization that receives data
         const authState = oktaAuth.authStateManager._authState;
-        if (!reportReceiver(authState) && permissionCheck(PERMISSIONS['sender'], authState)) {
+        if (!reportReceiver(authState) && permissionCheck(PERMISSIONS.SENDER, authState)) {
             history.replace(toRelativeUrl(`${window.location.origin}/upload`, window.location.origin));
             return;
         }
@@ -91,8 +91,8 @@ const App = () => {
                                 path="/login/callback"
                                 component={LoginCallback}
                             />
-                            <AuthorizedRoute path='/daily' authorize={PERMISSIONS['receiver']} component={Daily} />
-                            <AuthorizedRoute path='/upload' authorize={PERMISSIONS['sender']} component={Upload} />
+                            <AuthorizedRoute path='/daily' authorize={PERMISSIONS.RECEIVER} component={Daily} />
+                            <AuthorizedRoute path='/upload' authorize={PERMISSIONS.SENDER} component={Upload} />
                         </Switch>
                     </div>
                     <footer className="usa-identifier footer">
