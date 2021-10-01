@@ -1,5 +1,6 @@
 package gov.cdc.prime.router.serializers
 
+import ca.uhn.fhir.context.FhirContext
 import ca.uhn.hl7v2.DefaultHapiContext
 import ca.uhn.hl7v2.HL7Exception
 import ca.uhn.hl7v2.model.Type
@@ -56,6 +57,10 @@ class Hl7Serializer(
 
     private val hl7SegmentDelimiter: String = "\r"
     private val hapiContext = DefaultHapiContext()
+    private val fhirContext = FhirContext.forR4();
+    // var ftv = HL7ToFHIRConverter()
+    // var output: String = ftv.convert(hl7message) // generated a FHIR output
+
     private val modelClassFactory: ModelClassFactory = CanonicalModelClassFactory(HL7_SPEC_VERSION)
     private val buildVersion: String
     private val buildDate: String
@@ -269,7 +274,12 @@ class Hl7Serializer(
             }
             return RowResult(emptyMap(), errors, warnings)
         }
+        // TODO: we have a HL7 message now - this will need to live somewhere else / refactor a bit. can try to turn it into FHIR now
+        // we have cleanedMessage, which is the hl7 message in cleaned form, still as a string
 
+//        val fhirMsg = hapiContext.genericParser.parse(cleanedMessage)
+
+        // pull out parts of the message using the HAPI terser and build it into our internal format csv
         try {
             val terser = Terser(hapiMsg)
 
