@@ -8,7 +8,7 @@ export const GettingStarted = () => {
             <Helmet>
                 <title>Getting started | How it works | {process.env.REACT_APP_TITLE}</title>
             </Helmet>
-            <section id="anchor-top">
+            <section id="anchor-top" className="usa-prose">
                 <h1 className="margin-top-0">Getting started</h1>
                 <p className="usa-intro">
                     First, we’ll get you connected to our web application, where you can
@@ -49,7 +49,7 @@ export const GettingStarted = () => {
             </section>
             <hr className="margin-y-6" />
 
-            <section>
+            <section className="usa-prose">
                 <h2 id="data-download">
                     Data download
                 </h2>

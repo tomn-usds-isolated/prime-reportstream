@@ -36,6 +36,11 @@ $theme-font-type-serif: "public-sans";
 $theme-font-role-heading: "sans";
 $theme-font-role-alt: "sans";
 
+// .usa-prose width
+$theme-text-measure-narrow: 1;
+$theme-text-measure: 4;
+$theme-text-measure-wide: 4;
+
 // COLORS - USDS redefine
 // these are color names we can reference else where and/or redefine usds colors
 $black: #010101;
