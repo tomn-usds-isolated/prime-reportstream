@@ -22,6 +22,7 @@ import gov.cdc.prime.router.azure.db.enums.TaskAction
 import gov.cdc.prime.router.tokens.AuthenticationStrategy
 import gov.cdc.prime.router.tokens.OktaAuthentication
 import gov.cdc.prime.router.tokens.TokenAuthentication
+import io.github.linuxforhealth.hl7.HL7ToFHIRConverter
 import org.apache.logging.log4j.kotlin.Logging
 import org.postgresql.util.PSQLException
 import java.io.ByteArrayInputStream
@@ -51,6 +52,8 @@ class ReportFunction : Logging {
         SkipInvalidItems,
         SendImmediately,
     }
+
+    private val fhirMapper = HL7ToFHIRConverter()
 
     data class ValidatedRequest(
         val httpStatus: HttpStatus,
@@ -412,6 +415,16 @@ class ReportFunction : Logging {
             }
             Sender.Format.HL7 -> {
                 try {
+                    // TODO: This needs to be broken out and put on a feature toggle
+                    val messageBody = ByteArrayInputStream(content.toByteArray()).bufferedReader().use { it.readText() }
+                    val fhirOutput : String
+
+                    if (messageBody.isNotEmpty()) {
+                        // TODO: We are not doing anything with this output in the fhir-playground branch
+                        fhirOutput = fhirMapper.convert(messageBody) // generated a FHIR output
+                    }
+
+                    // TODO: this is the original HL7 processing code
                     val readResult = engine.hl7Serializer.readExternal(
                         schemaName = sender.schemaName,
                         input = ByteArrayInputStream(content.toByteArray()),

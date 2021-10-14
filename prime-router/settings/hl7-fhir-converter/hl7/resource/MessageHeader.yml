@@ -1,0 +1,23 @@
+#
+# (C) Copyright IBM Corp. 2020
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Required MSH fields are: MSH-24.2, MSH-9.2, MSH-10
+---
+resourceType: MessageHeader
+
+id:
+  type: String
+  valueOf: MSH.10
+  expressionType: HL7Spec
+
+eventCoding:
+    type: CODING_SYSTEM_V2
+    required: true
+    valueOf: MSH.9.2
+    expressionType: HL7Spec
+
+destination:
+    valueOf: secondary/Destination
+    expressionType: resource

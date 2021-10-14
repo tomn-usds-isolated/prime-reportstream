@@ -1,0 +1,51 @@
+#
+# (C) Copyright IBM Corp. 2020, 2021
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# FHIR Resources to extract from ORU_R01 message
+---
+resources:
+    - resourceName: MessageHeader
+      segment: MSH
+      resourcePath: resource/MessageHeader
+      repeats: false
+      isReferenced: false
+      additionalSegments:
+
+    - resourceName: Patient
+      segment: PATIENT_RESULT.PATIENT.PID
+      resourcePath: resource/Patient
+      isReferenced: true
+      repeats: false
+      additionalSegments:
+          - .PD1
+          - MSH
+
+    - resourceName: Observation
+      segment: .OBSERVATION.OBX
+      group: PATIENT_RESULT.ORDER_OBSERVATION
+      resourcePath: resource/Observation
+      repeats: true
+      isReferenced: true
+      additionalSegments: 
+          - .OBR
+          - .OBSERVATION.NTE
+          - MSH
+
+    - resourceName: DiagnosticReport
+      segment: .OBR
+      group: PATIENT_RESULT.ORDER_OBSERVATION
+      resourcePath: resource/DiagnosticReport
+      repeats: true
+      additionalSegments:
+          - .ORC
+          - .NTE
+          - .OBSERVATION.OBX
+          - MSH
+
+  # ServiceRequest is created as a result of creating the DiagnosticReport.
+  # There will always be a DiagnosticReport before a ServiceRequest.
+  # DiagnosticReport is required.  ServiceRequest is optional.
+
+           
