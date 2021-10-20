@@ -158,6 +158,41 @@ elements:
       csvFields: [{name: LIVD Testkit Name ID}]
 
 
+#ordering facility + reporting facility name
+    - name: reporting_facility_name
+      csvFields: [{name: Test Location}]
+
+    - name: ordering_facility_name
+      csvFields: [{name: Test Location}]
+
+    - name: ordering_facility_street
+      csvFields: [{name: Test Address}]
+
+    - name: ordering_facility_city
+      csvFields: [{name: Test City}]
+
+    - name: ordering_facility_state
+      csvFields: [{name: Test State}]
+
+    - name: ordering_facility_zip_code
+      csvFields: [{name: Test Zip}]
+
+    - name: ordering_facility_county
+      type: TABLE
+      table: zip-code-data
+#      cardinality: ZERO_OR_ONE
+      tableColumn: county
+      mapper: zipCodeToCounty(ordering_facility_zip_code)
+
+    - name: ordering_facility_phone_number
+      csvFields: [{name: Test Phone Number}]
+
+    - name: ordering_facility_email
+      csvFields: [{name: Organization Email}]
+
+    - name: ordering_facility_country
+      csvFields: [{name: testing_lab_country}]
+
 
 #testing lab
     - name: testing_lab_name
@@ -174,6 +209,13 @@ elements:
 
     - name: testing_lab_zip_code
       csvFields: [{name: Test Zip}]
+
+    - name: testing_lab_county
+      type: TABLE
+      table: zip-code-data
+      cardinality: ZERO_OR_ONE
+      tableColumn: county
+      mapper: zipCodeToCounty(testing_lab_zip_code)
 
     - name: testing_lab_phone_number
       csvFields: [{name: Test Phone Number}]
@@ -209,39 +251,17 @@ elements:
     - name: ordering_provider_zip_code
       csvFields: [{name: Test Zip}]
 
+    - name: ordering_provider_county
+      type: TABLE
+      table: zip-code-data
+      cardinality: ZERO_OR_ONE
+      tableColumn: county
+      mapper: zipCodeToCounty(ordering_provider_zip_code)
+
     - name: ordering_provider_phone_number
       csvFields: [{name: Test Phone Number}]
 
     - name: ordering_provider_country
-      csvFields: [{name: testing_lab_country}]
-
-
-#ordering facility + reporting facility name
-    - name: reporting_facility_name
-      csvFields: [{name: Test Location}]
-
-    - name: ordering_facility_name
-      csvFields: [{name: Test Location}]
-
-    - name: ordering_facility_street
-      csvFields: [{name: Test Address}]
-
-    - name: ordering_facility_city
-      csvFields: [{name: Test City}]
-
-    - name: ordering_facility_state
-      csvFields: [{name: Test State}]
-
-    - name: ordering_facility_zip_code
-      csvFields: [{name: Test Zip}]
-
-    - name: ordering_facility_phone_number
-      csvFields: [{name: Test Phone Number}]
-
-    - name: ordering_facility_email
-      csvFields: [{name: Organization Email}]
-
-    - name: ordering_facility_country
       csvFields: [{name: testing_lab_country}]
 
 
