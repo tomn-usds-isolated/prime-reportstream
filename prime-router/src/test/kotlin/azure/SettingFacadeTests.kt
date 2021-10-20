@@ -14,7 +14,6 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.spyk
 import org.jooq.JSONB
-import org.jooq.tools.jdbc.MockConnection
 import org.jooq.tools.jdbc.MockDataProvider
 import org.jooq.tools.jdbc.MockResult
 import org.junit.jupiter.api.BeforeEach
@@ -25,8 +24,7 @@ import java.time.OffsetDateTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SettingFacadeTests {
     private val dataProvider = MockDataProvider { emptyArray<MockResult>() }
-    private val connection = MockConnection(dataProvider)
-    private val accessSpy = spyk(DatabaseAccess(connection))
+    private val accessSpy = spyk(MockDatabaseAccess(dataProvider))
 
     private val testOrg = Setting(
         1,

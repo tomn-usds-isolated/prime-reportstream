@@ -24,7 +24,6 @@ import io.mockk.mockkClass
 import io.mockk.mockkObject
 import io.mockk.spyk
 import io.mockk.verify
-import org.jooq.tools.jdbc.MockConnection
 import org.jooq.tools.jdbc.MockDataProvider
 import org.jooq.tools.jdbc.MockResult
 import org.junit.jupiter.api.BeforeEach
@@ -36,8 +35,7 @@ import kotlin.test.assertEquals
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WorkflowEngineTests {
     val dataProvider = MockDataProvider { emptyArray<MockResult>() }
-    val connection = MockConnection(dataProvider)
-    val accessSpy = spyk(DatabaseAccess(connection))
+    val accessSpy = spyk(MockDatabaseAccess(dataProvider))
     val blobMock = mockkClass(BlobAccess::class)
     val queueMock = mockkClass(QueueAccess::class)
     val oneOrganization = DeepOrganization(
@@ -209,6 +207,7 @@ class WorkflowEngineTests {
             accessSpy.fetchAndLockTask(reportId = any(), any())
             accessSpy.fetchItemLineagesForReport(reportId = any(), any(), any())
             accessSpy.fetchReportFile(reportId = any(), any(), any())
+            accessSpy.getAndUseConnection(any())
         }
         confirmVerified(accessSpy, blobMock, queueMock)
     }

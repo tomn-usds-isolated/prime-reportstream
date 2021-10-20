@@ -25,6 +25,7 @@ import gov.cdc.prime.router.azure.db.tables.pojos.Task
 import gov.cdc.prime.router.azure.db.tables.records.CovidResultMetadataRecord
 import gov.cdc.prime.router.azure.db.tables.records.TaskRecord
 import org.apache.logging.log4j.kotlin.Logging
+import org.apache.logging.log4j.kotlin.logger
 import org.flywaydb.core.Flyway
 import org.jooq.Configuration
 import org.jooq.DSLContext
@@ -32,18 +33,18 @@ import org.jooq.Field
 import org.jooq.JSON
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
-import org.jooq.impl.DSL.count
 import org.jooq.impl.DSL.inline
+import org.jooq.tools.jdbc.MockConnection
+import org.jooq.tools.jdbc.MockDataProvider
 import org.postgresql.Driver
-import java.sql.Connection
 import java.sql.DriverManager
 import java.time.OffsetDateTime
 import java.util.UUID
-import javax.sql.DataSource
 
-const val databaseVariable = "POSTGRES_URL"
-const val userVariable = "POSTGRES_USER"
-const val passwordVariable = "POSTGRES_PASSWORD"
+// Environment variables
+const val DATABASE_VARIABLE = "POSTGRES_URL"
+const val USER_VARIABLE = "POSTGRES_USER"
+const val PASSWORD_VARIABLE = "POSTGRES_PASSWORD"
 
 // general max length of free from metadata strings since jooq/postgres
 // does not truncate values when persisting to the database
@@ -52,36 +53,128 @@ const val METADATA_MAX_LENGTH = 512
 typealias DataAccessTransaction = Configuration
 
 /**
- * A data access layer for the database. The idea or abstraction is CRUD on tables in the database.
- * The interface uses the POJO abstractions of the database tables.
+ * Database access using a connection pool.
+ * A [PooledDatabaseAccess] object can be used for multiple operations
+ * The connection pool used is always [DatabaseAccess.commonDataSource]
  *
- * The companion object does the connection pooling and settings.
+ * Example usage:
+ *
+ * ```
+ * val dal = PooledDatabaseAccess()
+ * val task = dal.fetchTask(reportId)
+ * dal.transact { ctx ->
+ *    val task = ctx.fetchAndLockTask(...)
+ *    ... // Update task
+ *    ctx.updateTask(task, ...)
+ * }
+ * ```
  */
-class DatabaseAccess(private val create: DSLContext) : Logging {
-    constructor(
-        dataSource: DataSource = commonDataSource
-    ) : this(DSL.using(dataSource, SQLDialect.POSTGRES))
-    constructor(connection: Connection) : this(DSL.using(connection, SQLDialect.POSTGRES))
+class PooledDatabaseAccess() : DatabaseAccess() {
+    /**
+     * Get a connection from the common connection pool and form a context using it it.
+     */
+    override fun <T> getAndUseConnection(block: (context: DSLContext) -> T): T {
+        // Note: the use method will close the connection after the use block.
+        // This will release it back to the connection pool
+        return pooledDataSource.getConnection().use {
+            val ctx = DSL.using(it, SQLDialect.POSTGRES)
+            block(ctx)
+        }
+    }
+}
 
+/**
+ * Database access using a [MockDatabaseAccess] object for results. A [MockDatabaseAccess] object should only
+ * be used for one operation, as the connection is always closed after the operation.
+ *
+ * Example usage:
+ *
+ * ```
+ * // Unit test example
+ * val dataProvider = MockDataProvider { emptyArray<MockResult>() }
+ * val dal = MockDataAccess(dataProvider)
+ * ```
+ */
+class MockDatabaseAccess(private val dataProvider: MockDataProvider) : DatabaseAccess() {
+    override fun <T> getAndUseConnection(block: (context: DSLContext) -> T): T {
+        val connection = MockConnection(dataProvider)
+        val ctx = DSL.using(connection, SQLDialect.POSTGRES)
+        return block(ctx)
+    }
+}
+
+/**
+ * A data access layer for the database. In general, this access layer
+ * speaks in terms of objects and operations and abstracts specific SQL queries.
+ *
+ * Key to the abstraction is the [DataAccessTransaction] which allows multiple operations to be
+ * composed within a single database transaction. There are two groups of operations:
+ *
+ *   - Those that take a [DataAccessTransaction] as a parameter. These operations must execute in the context
+ *   of an enclosing transaction.
+ *   - Those that take an optional [DataAccessTransaction] as a parameter.
+ *   These may be used alone or within a transaction.
+ */
+abstract class DatabaseAccess : Logging {
+    /**
+     * Get a connection, form a [DSLContext] from the connection, and pass it to lambda [block].
+     */
+    abstract fun <T> getAndUseConnection(block: (context: DSLContext) -> T): T
+
+    /**
+     * Check that the database connection can be made.
+     *
+     * @throws [SQLExecption] if database cannot be connected
+     */
     fun checkConnection() {
-        create.selectFrom(REPORT_FILE).where(REPORT_FILE.REPORT_ID.eq(UUID.randomUUID())).fetch()
+        getAndUseConnection {
+            it.selectFrom(REPORT_FILE).where(REPORT_FILE.REPORT_ID.eq(UUID.randomUUID())).fetch()
+        }
     }
 
-    /** Make the other calls in the context of a SQL transaction */
+    /**
+     * Create a database transaction context and pass it to the [block]. Commit the
+     * transaction after the execution of [block]
+     *
+     * Example:
+     * ```
+     * dal.transact { txn ->
+     *    val task = dal.fetchAndLockTask(reportId, txn)
+     *    updateTask(task, txn)
+     * }
+     * ```
+     */
     fun transact(block: (txn: DataAccessTransaction) -> Unit) {
-        create.transaction { txn: Configuration -> block(txn) }
+        getAndUseConnection {
+            it.transaction(block)
+        }
     }
 
-    /** Make the other calls in the context of a SQL transaction, returning a result */
+    /**
+     * Create a database transaction context and pass it to the [block]. Commit the
+     * transaction after the execution of [block]. Return the result.
+     *
+     * Example:
+     * ```
+     * dal.transact { txn ->
+     *    val task = dal.fetchAndLockTask(reportId, txn)
+     *    updateTask(task, txn)
+     * }
+     * ```
+     */
     fun <T> transactReturning(block: (txn: DataAccessTransaction) -> T): T {
-        return create.transactionResult { txn: Configuration -> block(txn) }
+        return getAndUseConnection {
+            it.transactionResult(block)
+        }
     }
 
     /*
      * Task queries
      */
 
-    /** Fetch a task record and lock it so other connections can grab it */
+    /**
+     * Fetch a [Task] record for [reportId] and lock it so other connections cannot grab it.
+     */
     fun fetchAndLockTask(reportId: ReportId, txn: DataAccessTransaction): Task {
         return DSL.using(txn)
             .selectFrom(TASK)
@@ -92,7 +185,9 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
             ?: error("Could not find $reportId that matches a task")
     }
 
-    /** Fetch multiple task records and lock them so other connections can not grab them */
+    /**
+     * Fetch multiple [Task] records and lock them so other connections can not grab them.
+     */
     fun fetchAndLockTasks(
         nextAction: TaskAction,
         at: OffsetDateTime?,
@@ -120,15 +215,22 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
             .into(Task::class.java)
     }
 
-    fun fetchTask(reportId: ReportId): Task {
-        return create.selectFrom(TASK)
-            .where(TASK.REPORT_ID.eq(reportId))
-            .fetchOne()
-            ?.into(Task::class.java)
-            ?: error("Could not find $reportId that matches a task")
+    /**
+     * Fetch a [Task] associated with [reportId]
+     */
+    fun fetchTask(reportId: ReportId, txn: DataAccessTransaction? = null): Task {
+        return useTransaction(txn) { ctx ->
+            ctx.selectFrom(TASK)
+                .where(TASK.REPORT_ID.eq(reportId))
+                .fetchOne()
+                ?.into(Task::class.java)
+                ?: error("Could not find $reportId that matches a task")
+        }
     }
 
-    /** Take a report and put into the database after already serializing the body of the report */
+    /**
+     * Take a [report] and put into the database after already serializing the body of the report
+     */
     fun insertTask(
         report: Report,
         bodyFormat: String,
@@ -136,18 +238,15 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
         nextAction: Event,
         txn: DataAccessTransaction? = null,
     ) {
-        fun insert(txn: Configuration) {
+        useTransaction(txn) { ctx ->
             val task = createTaskRecord(report, bodyFormat, bodyUrl, nextAction)
-            DSL.using(txn).executeInsert(task)
-        }
-
-        if (txn != null) {
-            insert(txn)
-        } else {
-            create.transaction { innerTxn -> insert(innerTxn) }
+            ctx.executeInsert(task)
         }
     }
 
+    /**
+     * Update a [Task] in the task table.
+     */
     fun updateTask(
         reportId: ReportId,
         nextAction: TaskAction,
@@ -156,14 +255,15 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
         finishedField: Field<OffsetDateTime>,
         txn: DataAccessTransaction?
     ) {
-        val ctx = if (txn != null) DSL.using(txn) else create
-        ctx.update(TASK)
-            .set(TASK.NEXT_ACTION, nextAction)
-            .set(TASK.NEXT_ACTION_AT, nextActionAt)
-            .set(TASK.RETRY_TOKEN, if (retryToken != null) JSON.valueOf(retryToken) else null)
-            .set(finishedField, OffsetDateTime.now())
-            .where(TASK.REPORT_ID.eq(reportId))
-            .execute()
+        useTransaction(txn) { ctx ->
+            ctx.update(TASK)
+                .set(TASK.NEXT_ACTION, nextAction)
+                .set(TASK.NEXT_ACTION_AT, nextActionAt)
+                .set(TASK.RETRY_TOKEN, if (retryToken != null) JSON.valueOf(retryToken) else null)
+                .set(finishedField, OffsetDateTime.now())
+                .where(TASK.REPORT_ID.eq(reportId))
+                .execute()
+        }
     }
 
     /*
@@ -176,7 +276,6 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
         org: Organization? = null,
         txn: DataAccessTransaction? = null
     ): ReportFile {
-        val ctx = if (txn != null) DSL.using(txn) else create
         val cond =
             if (org == null) {
                 Tables.REPORT_FILE.REPORT_ID.eq(reportId)
@@ -186,16 +285,19 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
                     .eq(reportId)
                     .and(Tables.REPORT_FILE.RECEIVING_ORG.eq(org.name))
             }
-        return ctx.selectFrom(Tables.REPORT_FILE)
-            .where(cond)
-            .fetchOne()
-            ?.into(ReportFile::class.java)
-            ?: error(
-                "Could not find $reportId in REPORT_FILE" +
-                    if (org != null) {
-                        " associated with organization ${org.name}"
-                    } else ""
-            )
+
+        return useTransaction(txn) { ctx ->
+            ctx.selectFrom(Tables.REPORT_FILE)
+                .where(cond)
+                .fetchOne()
+                ?.into(ReportFile::class.java)
+                ?: error(
+                    "Could not find $reportId in REPORT_FILE" +
+                        if (org != null) {
+                            " associated with organization ${org.name}"
+                        } else ""
+                )
+        }
     }
 
     fun fetchAllInternalReports(
@@ -203,15 +305,17 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
         txn: DataAccessTransaction? = null
     ): List<ReportFile> {
         val createdDt = createdDateTime ?: OffsetDateTime.now().minusDays(30)
-        val ctx = if (txn != null) DSL.using(txn) else create
         val cond =
             Tables.REPORT_FILE
                 .SENDING_ORG
                 .isNotNull
                 .and(Tables.REPORT_FILE.BODY_FORMAT.eq("INTERNAL"))
                 .and(Tables.REPORT_FILE.CREATED_AT.ge(createdDt))
-        return ctx.selectFrom(Tables.REPORT_FILE).where(cond).fetchArray().map {
-            it.into(ReportFile::class.java)
+        return useTransaction(txn) { ctx ->
+            ctx.selectFrom(Tables.REPORT_FILE)
+                .where(cond)
+                .fetchArray()
+                .map { it.into(ReportFile::class.java) }
         }
     }
 
@@ -221,16 +325,17 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
         itemCount: Int,
         txn: DataAccessTransaction? = null
     ): List<ItemLineage>? {
-        val ctx = if (txn != null) DSL.using(txn) else create
-        val itemLineages =
+        val itemLineages = useTransaction(txn) { ctx ->
             ctx.selectFrom(Tables.ITEM_LINEAGE)
                 .where(Tables.ITEM_LINEAGE.CHILD_REPORT_ID.eq(reportId))
                 .orderBy(
                     Tables.ITEM_LINEAGE.CHILD_INDEX
-                ) // todo Don't know if this will be too slow?  Use a map in mem?
+                )
                 .fetch()
                 .into(ItemLineage::class.java)
                 .toList()
+        }
+
         // sanity check.  If there are lineages, every record up to itemCount should have at least
         // one lineage.
         // OK to have more than one lineage.  Eg, a merge.
@@ -255,7 +360,6 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
         orgName: String,
         txn: DataAccessTransaction? = null,
     ): List<ReportFile> {
-        val ctx = if (txn != null) DSL.using(txn) else create
         val cond =
             if (since == null) {
                 Tables.REPORT_FILE
@@ -270,24 +374,27 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
                     .and(Tables.REPORT_FILE.CREATED_AT.ge(since))
             }
 
-        return ctx.selectFrom(Tables.REPORT_FILE)
-            .where(cond)
-            .fetch()
-            .into(ReportFile::class.java)
-            .toList()
+        return useTransaction(txn) { ctx ->
+            ctx.selectFrom(Tables.REPORT_FILE)
+                .where(cond)
+                .fetch()
+                .into(ReportFile::class.java)
+                .toList()
+        }
     }
 
     fun fetchChildReports(
         parentReportId: UUID,
         txn: DataAccessTransaction? = null,
     ): List<ReportId> {
-        val ctx = if (txn != null) DSL.using(txn) else create
-        return ctx.select(REPORT_LINEAGE.CHILD_REPORT_ID)
-            .from(REPORT_LINEAGE)
-            .where(REPORT_LINEAGE.PARENT_REPORT_ID.eq(parentReportId))
-            .fetch()
-            .into(ReportId::class.java)
-            .toList()
+        return useTransaction(txn) { ctx ->
+            ctx.select(REPORT_LINEAGE.CHILD_REPORT_ID)
+                .from(REPORT_LINEAGE)
+                .where(REPORT_LINEAGE.PARENT_REPORT_ID.eq(parentReportId))
+                .fetch()
+                .into(ReportId::class.java)
+                .toList()
+        }
     }
 
     /** Settings queries */
@@ -347,9 +454,8 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
     ): Pair<Setting, Setting>? {
         val org = SETTING.`as`("org")
         val item = SETTING.`as`("item")
-        val ctx = if (txn != null) DSL.using(txn) else create
-        val result =
-            ctx.select(item.asterisk(), org.asterisk())
+        val result = useTransaction(txn) {
+            it.select(item.asterisk(), org.asterisk())
                 .from(item)
                 .join(org)
                 .on(item.ORGANIZATION_ID.eq(org.SETTING_ID))
@@ -363,7 +469,7 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
                     org.NAME.eq(organizationName),
                 )
                 .fetchOne()
-                ?: return null
+        } ?: return null
 
         val itemSetting =
             Setting(
@@ -561,38 +667,40 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
 
     /** EmailSchedule queries */
     fun fetchEmailSchedules(txn: DataAccessTransaction? = null): List<String> {
-
-        val ctx = if (txn != null) DSL.using(txn) else create
-        return ctx.select(EMAIL_SCHEDULE.VALUES)
-            .from(EMAIL_SCHEDULE)
-            .where(EMAIL_SCHEDULE.IS_ACTIVE.eq(true))
-            .fetch()
-            .into(String::class.java)
+        return useTransaction(txn) { ctx ->
+            ctx.select(EMAIL_SCHEDULE.VALUES)
+                .from(EMAIL_SCHEDULE)
+                .where(EMAIL_SCHEDULE.IS_ACTIVE.eq(true))
+                .fetch()
+                .into(String::class.java)
+        }
     }
 
     fun insertEmailSchedule(body: String?, user: String, txn: DataAccessTransaction? = null): Int? {
-        val ctx = if (txn != null) DSL.using(txn) else create
-        return ctx.insertInto(EMAIL_SCHEDULE)
-            .set(
-                EMAIL_SCHEDULE.EMAIL_SCHEDULE_ID,
-                DSL.defaultValue(EMAIL_SCHEDULE.EMAIL_SCHEDULE_ID)
-            )
-            .set(EMAIL_SCHEDULE.VALUES, JSON.valueOf(body))
-            .set(EMAIL_SCHEDULE.IS_ACTIVE, true)
-            .set(EMAIL_SCHEDULE.VERSION, 1)
-            .set(EMAIL_SCHEDULE.CREATED_BY, user)
-            .set(EMAIL_SCHEDULE.CREATED_AT, OffsetDateTime.now())
-            .returningResult(EMAIL_SCHEDULE.EMAIL_SCHEDULE_ID)
-            .fetchOne()
-            ?.into(Int::class.java)
+        return useTransaction(txn) {
+            it.insertInto(EMAIL_SCHEDULE)
+                .set(
+                    EMAIL_SCHEDULE.EMAIL_SCHEDULE_ID,
+                    DSL.defaultValue(EMAIL_SCHEDULE.EMAIL_SCHEDULE_ID)
+                )
+                .set(EMAIL_SCHEDULE.VALUES, JSON.valueOf(body))
+                .set(EMAIL_SCHEDULE.IS_ACTIVE, true)
+                .set(EMAIL_SCHEDULE.VERSION, 1)
+                .set(EMAIL_SCHEDULE.CREATED_BY, user)
+                .set(EMAIL_SCHEDULE.CREATED_AT, OffsetDateTime.now())
+                .returningResult(EMAIL_SCHEDULE.EMAIL_SCHEDULE_ID)
+                .fetchOne()
+                ?.into(Int::class.java)
+        }
     }
 
     fun deleteEmailSchedule(id: Int, txn: DataAccessTransaction? = null) {
-        val ctx = if (txn != null) DSL.using(txn) else create
-        ctx.update(EMAIL_SCHEDULE)
-            .set(EMAIL_SCHEDULE.IS_ACTIVE, false)
-            .where(EMAIL_SCHEDULE.EMAIL_SCHEDULE_ID.eq(id))
-            .execute()
+        useTransaction(txn) { ctx ->
+            ctx.update(EMAIL_SCHEDULE)
+                .set(EMAIL_SCHEDULE.IS_ACTIVE, false)
+                .where(EMAIL_SCHEDULE.EMAIL_SCHEDULE_ID.eq(id))
+                .execute()
+        }
     }
 
     /**
@@ -664,8 +772,7 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
         reportId: ReportId,
         txn: DataAccessTransaction? = null
     ): List<Facility> {
-        val ctx = if (txn != null) DSL.using(txn) else create
-        val result =
+        val result = useTransaction(txn) { ctx ->
             ctx.select(
                 REPORT_FACILITIES.TESTING_LAB_NAME,
                 REPORT_FACILITIES.TESTING_LAB_CITY,
@@ -676,6 +783,7 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
             )
                 .from(REPORT_FACILITIES(reportId))
                 .fetch()
+        }
 
         return result.map {
             Facility.Builder(
@@ -716,14 +824,26 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
 
     /** Fetch the newest CreatedAt timestamp, active or deleted. */
     fun fetchLastModified(txn: DataAccessTransaction? = null): OffsetDateTime? {
-        val ctx = if (txn != null) DSL.using(txn) else create
-        return ctx.select(DSL.max(SETTING.CREATED_AT))
-            .from(SETTING)
-            .fetchOne()
-            ?.getValue(DSL.max(SETTING.CREATED_AT))
+        return useTransaction(txn) {
+            it.select(DSL.max(SETTING.CREATED_AT))
+                .from(SETTING)
+                .fetchOne()
+                ?.getValue(DSL.max(SETTING.CREATED_AT))
+        }
     }
 
-    /** Common companion object */
+    /**
+     * Use the passed in [txn] to create a [DSLContext] and pass the context to the [block].
+     * If [txn] is null, then create a context from a new connection.
+     */
+    private fun <T> useTransaction(txn: DataAccessTransaction?, block: (ctx: DSLContext) -> T): T {
+        return if (txn == null) {
+            getAndUseConnection(block)
+        } else {
+            block(DSL.using(txn))
+        }
+    }
+
     companion object {
         /** Global var. Set to false prior to the lazy init, to prevent flyway migrations */
         var isFlywayMigrationOK = true
@@ -736,12 +856,13 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
          * costs by reusing an existing process for a function invocation. Hence, a connection pool
          * is a win in latency after the first initialization.
          */
-        private val hikariDataSource: HikariDataSource by lazy {
+        val pooledDataSource: HikariDataSource by lazy {
             DriverManager.registerDriver(Driver())
+            logger().info("Creating a connection pool")
 
-            val password = System.getenv(passwordVariable)
-            val user = System.getenv(userVariable)
-            val databaseUrl = System.getenv(databaseVariable)
+            val password = System.getenv(PASSWORD_VARIABLE) ?: "changeIT!"
+            val user = System.getenv(USER_VARIABLE) ?: "prime"
+            val databaseUrl = System.getenv(DATABASE_VARIABLE) ?: "jdbc:postgresql://localhost:5432/prime_data_hub"
             val config = HikariConfig()
             config.jdbcUrl = databaseUrl
             config.username = user
@@ -761,7 +882,7 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
             // See this info why these are a good value
             //  https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing
             config.minimumIdle = 2
-            config.maximumPoolSize = 25
+            config.maximumPoolSize = 6
             // This strongly recommended to be set "be several seconds shorter than any database or
             // infrastructure
             // imposed connection time limit". Not sure what value is but have observed that
@@ -778,9 +899,9 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
             dataSource
         }
 
-        val commonDataSource: DataSource
-            get() = hikariDataSource
-
+        /**
+         * Create a [TaskRecord] from [report], [bodyFormat], [bodyUrl] and [nextAction]
+         */
         fun createTaskRecord(
             report: Report,
             bodyFormat: String,

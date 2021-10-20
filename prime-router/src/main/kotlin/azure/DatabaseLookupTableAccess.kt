@@ -12,7 +12,7 @@ class DatabaseLookupTableAccess {
     /**
      * Object to access the database.
      */
-    private val db = DatabaseAccess()
+    private val db = PooledDatabaseAccess()
 
     /**
      * Get the active version of a [tableName] if action.

@@ -48,7 +48,7 @@ class WorkflowEngine(
     val redoxSerializer: RedoxSerializer = WorkflowEngine.redoxSerializer,
     val translator: Translator = Translator(metadata, settings),
     // New connection for every function
-    val db: DatabaseAccess = databaseAccess,
+    val db: DatabaseAccess = PooledDatabaseAccess(),
     val blob: BlobAccess = BlobAccess(csvSerializer, hl7Serializer, redoxSerializer),
     val queue: QueueAccess = QueueAccess,
     val sftpTransport: SftpTransport = SftpTransport(),
@@ -187,7 +187,7 @@ class WorkflowEngine(
         // Send immediately.
         val nextEvent = ReportEvent(Event.EventAction.SEND, reportId, at = null)
         db.transact { txn ->
-            val task = db.fetchAndLockTask(reportId, txn) // Required, it creates lock.
+            db.fetchAndLockTask(reportId, txn) // Required, it creates lock.
             val organization = settings.findOrganization(receiver.organizationName)
                 ?: throw Exception("No such organization ${receiver.organizationName}")
             val header = fetchHeader(reportId, organization) // exception if not found
@@ -515,16 +515,12 @@ class WorkflowEngine(
             Metadata("$baseDir/metadata")
         }
 
-        val databaseAccess: DatabaseAccess by lazy {
-            DatabaseAccess()
-        }
-
         val settings: SettingsProvider by lazy {
             val baseDir = System.getenv("AzureWebJobsScriptRoot") ?: "."
             val primeEnv = System.getenv("PRIME_ENVIRONMENT")
             val settingsEnabled: String? = System.getenv("FEATURE_FLAG_SETTINGS_ENABLED")
             if (settingsEnabled == null || settingsEnabled.equals("true", ignoreCase = true)) {
-                SettingsFacade(metadata, databaseAccess)
+                SettingsFacade(metadata)
             } else {
                 val ext = primeEnv?.let { "-$it" } ?: ""
                 FileSettings("$baseDir/settings", orgExt = ext)

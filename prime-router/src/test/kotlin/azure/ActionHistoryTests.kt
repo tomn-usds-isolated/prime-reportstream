@@ -25,8 +25,6 @@ import gov.cdc.prime.router.azure.db.tables.pojos.Task
 import io.mockk.every
 import io.mockk.mockkClass
 import io.mockk.spyk
-import org.jooq.DSLContext
-import org.jooq.tools.jdbc.MockConnection
 import org.jooq.tools.jdbc.MockDataProvider
 import org.jooq.tools.jdbc.MockResult
 import org.junit.jupiter.api.Disabled
@@ -229,8 +227,7 @@ class ActionHistoryTests {
     @Test @Disabled
     fun `test saveToDb with an externally received report`() {
         val dataProvider = MockDataProvider { emptyArray<MockResult>() }
-        val connection = MockConnection(dataProvider) as DSLContext // ? why won't this work?
-        val mockDb = spyk(DatabaseAccess(connection))
+        val mockDb = spyk(MockDatabaseAccess(dataProvider))
 
         val one = Schema(name = "schema1", topic = "topic1", elements = listOf())
         val report1 = Report(

@@ -24,7 +24,7 @@ import java.time.OffsetDateTime
  */
 class SettingsFacade(
     private val metadata: Metadata,
-    private val db: DatabaseAccess = DatabaseAccess()
+    private val db: DatabaseAccess = PooledDatabaseAccess()
 ) : SettingsProvider {
     enum class AccessResult {
         SUCCESS,
@@ -261,7 +261,7 @@ class SettingsFacade(
 
         // The SettingAccess is heavy-weight object (because it contains a Jackson Mapper) so reuse it when possible
         val common: SettingsFacade by lazy {
-            SettingsFacade(metadata, DatabaseAccess())
+            SettingsFacade(metadata)
         }
 
         private fun settingTypeFromClass(className: String): SettingType {
