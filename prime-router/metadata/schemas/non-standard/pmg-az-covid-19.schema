@@ -1,0 +1,308 @@
+# One-off Schema for All-In-One-Health in California
+# This schema is to be used to parse the standard CSV from the Sender
+# Created by Rick Hood
+# Last Update: 10/19/2021
+#
+name: pmg-az-covid-19
+topic: covid-19
+description: pmg-az - CSV lab report schema
+basedOn: covid-19
+
+elements:
+
+    - name: sender_id
+      default: pmg-az
+
+    - name: processing_mode_code
+      default: P
+
+
+#demographics
+    - name: patient_id
+      csvFields: [{name: Patient}]
+
+    - name: patient_id_assigner
+      csvFields: [{name: Test Location}]
+
+    - name: patient_id_type
+      default: "PI"
+
+    - name: patient_last_name
+      csvFields: [{name: Last Name}]
+
+    - name: patient_middle_name
+      csvFields: [{name: MI}]
+
+    - name: patient_first_name
+      csvFields: [{name: First Name}]
+
+    - name: patient_street
+      csvFields: [{name: Home Address}]
+
+    - name: patient_city
+      csvFields: [{name: Home City}]
+
+    - name: patient_state
+      csvFields: [{name: Home State}]
+
+    - name: patient_zip_code
+      csvFields: [{name: Home Zip}]
+
+    - name: patient_county
+      type: TABLE
+      table: zip-code-data
+#      cardinality: ZERO_OR_ONE
+      tableColumn: county
+      mapper: zipCodeToCounty(patient_zip_code)
+
+    - name: patient_country
+      type: CODE
+      csvFields: [{name: Home Country, format: $alt}]
+      default: USA
+      altValues:
+        - code: "USA"
+          display: "US"
+
+    - name: patient_phone_number
+      csvFields: [{name: Phone Number}]
+
+    - name: patient_dob
+      csvFields: [{name: Date Of Birth, format: "M/d/yyyy"}]
+
+    - name: patient_gender
+      type: CODE
+      valueSet: sender-automation/gender
+      documentation: Translate multiple inbound Gender values to RS values
+      csvFields: [{ name: Gender, format: $display}]
+      default: U
+
+    - name: patient_race
+      type: CODE
+      valueSet: sender-automation/race
+      documentation: Translate multiple inbound Race values to RS / OMB values
+      csvFields: [{ name: Race(s), format: $display}]
+      default: UNK
+
+    - name: patient_ethnicity
+      type: CODE
+      valueSet: sender-automation/ethnicity
+      documentation: Translate multiple inbound ethnicity values to RS / OMB values
+      csvFields: [{ name: Ethnicity, format: $display}]
+      default: U
+
+    - name: patient_email
+      csvFields: [{name: Email}]
+
+
+# Specimen/Order Info
+    - name: specimen_collection_date_time
+      csvFields: [{name: Form Submitted, format: "M/d/yyyy H:nn"}]
+
+    - name: order_test_date
+      csvFields: [{name: Form Updated, format: "M/d/yyyy H:nn"}]
+
+    - name: testing_lab_specimen_received_datetime
+      csvFields: [{name: Form Updated, format: "M/d/yyyy H:nn"}]
+
+    - name: test_result_date
+      csvFields: [{name: Resulted at, format: "M/d/yyyy H:nn"}]
+
+    - name: date_result_released
+      csvFields: [{name: Resulted at, format: "M/d/yyyy H:nn"}]
+
+    - name: test_result_report_date
+      csvFields: [{name: Resulted at, format: "M/d/yyyy H:nn"}]
+
+    - name: test_result
+      type: CODE
+      valueSet: sender-automation/test_result
+      documentation: Translate multiple inbound Test Result values to RS values
+      csvFields: [{ name: Result, format: $display}]
+
+    - name: test_result_status
+      csvFields: [{name: Test_result_status}]
+      default: F
+
+    - name: filler_order_id
+      csvFields: [{name: Test}]
+
+    - name: placer_order_id
+      csvFields: [{name: Test}]
+
+    - name: testing_lab_specimen_id
+      csvFields: [{name: Test}]
+
+    - name: specimen_type
+      type: CODE
+      valueSet: sender-automation/specimen_type
+      documentation: Translate inbound text to outbound SNOMED Codes
+      csvFields: [{ name: Specimen Type, format: $display}]
+      default: Nasal Swab
+
+    - name: specimen_source_site_code
+      type: CODE
+      valueSet: sender-automation/specimen_source_site_code
+      documentation: Translate inbound text to outbound SNOMED Codes
+      csvFields: [{ name: Specimen Type, format: $display}]
+      default: Nasal Swab
+
+# Set fields needed for the LIVDlookup() Mapper to set the LOINC code and OBX.17 - Device Info
+    - name: equipment_model_name
+
+    - name: test_performed_code
+      type: TEXT
+      csvFields: [{name: LOINC Code}]
+
+    - name: test_kit_name_id
+      type: TEXT
+      csvFields: [{name: LIVD Testkit Name ID}]
+
+
+
+#testing lab
+    - name: testing_lab_name
+      csvFields: [{name: Test Location}]
+
+    - name: testing_lab_street
+      csvFields: [{name: Test Address}]
+
+    - name: testing_lab_city
+      csvFields: [{name: Test City}]
+
+    - name: testing_lab_state
+      csvFields: [{name: Test State}]
+
+    - name: testing_lab_zip_code
+      csvFields: [{name: Test Zip}]
+
+    - name: testing_lab_phone_number
+      csvFields: [{name: Test Phone Number}]
+
+    - name: testing_lab_country
+      type: CODE
+      csvFields: [{name: Test Country, format: $alt}]
+      default: USA
+      altValues:
+        - code: "USA"
+          display: "US"
+
+
+# Ordering provider
+    - name: ordering_provider_id
+      csvFields: [{name: NPI}]
+
+    - name: ordering_provider_first_name
+      csvFields: [{name: Provider First Name}]
+
+    - name: ordering_provider_last_name
+      csvFields: [{name: Provider Last Name}]
+
+    - name: ordering_provider_street
+      csvFields: [{name: Test Address}]
+
+    - name: ordering_provider_city
+      csvFields: [{name: Test City}]
+
+    - name: ordering_provider_state
+      csvFields: [{name: Test State}]
+
+    - name: ordering_provider_zip_code
+      csvFields: [{name: Test Zip}]
+
+    - name: ordering_provider_phone_number
+      csvFields: [{name: Test Phone Number}]
+
+    - name: ordering_provider_country
+      csvFields: [{name: testing_lab_country}]
+
+
+#ordering facility + reporting facility name
+    - name: reporting_facility_name
+      csvFields: [{name: Test Location}]
+
+    - name: ordering_facility_name
+      csvFields: [{name: Test Location}]
+
+    - name: ordering_facility_street
+      csvFields: [{name: Test Address}]
+
+    - name: ordering_facility_city
+      csvFields: [{name: Test City}]
+
+    - name: ordering_facility_state
+      csvFields: [{name: Test State}]
+
+    - name: ordering_facility_zip_code
+      csvFields: [{name: Test Zip}]
+
+    - name: ordering_facility_phone_number
+      csvFields: [{name: Test Phone Number}]
+
+    - name: ordering_facility_email
+      csvFields: [{name: Organization Email}]
+
+    - name: ordering_facility_country
+      csvFields: [{name: testing_lab_country}]
+
+
+#CLIA
+    - name: testing_lab_clia
+      csvFields: [{name: CLIA}]
+
+    - name: testing_lab_id
+      csvFields: [{name: CLIA}]
+
+    - name: reporting_facility_clia
+      csvFields: [{name: CLIA}]
+
+    - name: filler_clia
+      csvFields: [{name: CLIA}]
+
+
+# Concatenated fields
+    - name: message_id
+      csvFields: [{name: Test}]
+
+#AOE fields
+    - name: pregnant
+      type: CODE
+      valueSet: sender-automation/pregnant
+      documentation: Translate multiple inbound values into the Pregnancy SNOMED Codes
+      csvFields: [{ name: Pregnant, format: $display}]
+      default: ""
+
+    - name: first_test
+      type: CODE
+      valueSet: sender-automation/yesno
+      documentation: Translate multiple inbound Y/N/U AOE values to RS values
+      csvFields: [{ name: Previously Tested, format: $display}]
+      default: ""
+
+    - name: employed_in_healthcare
+      type: CODE
+      valueSet: sender-automation/yesno
+      documentation: Translate multiple inbound Y/N/U AOE values to RS values
+      csvFields: [{ name: Employed In Health Care, format: $display}]
+      default: ""
+
+#    - name: symptomatic_for_disease
+#      type: CODE
+#      valueSet: sender-automation/yesno
+#      documentation: Translate multiple inbound Y/N/U AOE values to RS values
+#      csvFields: [{ name: Symptomatic_for_disease, format: $display}]
+#      default: ""
+
+    - name: resident_congregate_setting
+      type: CODE
+      valueSet: sender-automation/yesno
+      documentation: Translate multiple inbound Y/N/U AOE values to RS values
+      csvFields: [{ name: Live/Work Congregate, format: $display}]
+      default: ""
+
+
+# Default Values
+    - name: hospitalized
+      default: N
+
+    - name: icu
+      default: N

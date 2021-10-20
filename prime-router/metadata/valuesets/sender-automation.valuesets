@@ -177,10 +177,14 @@
       display: YES
     - code: Y
       display: Y
+    - code: Y
+      display: TRUE
     - code: N
       display: NO
     - code: N
       display: N
+    - code: N
+      display: FALSE
     - code: UNK
       display: Unknown
     - code: UNK
@@ -212,6 +216,8 @@
     - code: 77386006
       display: YES
     - code: 77386006
+      display: TRUE
+    - code: 77386006
       display: 77386006
     - code: 60001007
       display: Not Pregnant
@@ -221,6 +227,8 @@
       display: N
     - code: 60001007
       display: NO
+    - code: 60001007
+      display: FALSE
     - code: 60001007
       display: 60001007
     - code: 261665006

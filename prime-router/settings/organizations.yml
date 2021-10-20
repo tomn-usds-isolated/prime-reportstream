@@ -250,6 +250,17 @@
       schemaName: non-standard/all-in-one-health-ca-covid-19
       format: CSV
 
+- name: pmg-az
+  description: PMG-AZ CSV lab report schema, California
+  jurisdiction: FEDERAL
+  senders:
+    - name: default
+      organizationName: pmg-az
+      topic: covid-19
+      customerStatus: active
+      schemaName: non-standard/pmg-az-covid-19
+      format: CSV
+
 - name: az-phd
   description: Arizona PHD
   jurisdiction: STATE
