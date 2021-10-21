@@ -58,7 +58,7 @@ class Hl7Serializer(
     private val hl7SegmentDelimiter: String = "\r"
     private val hapiContext = DefaultHapiContext()
     private val fhirContext = FhirContext.forR4()
-    // var ftv = HL7ToFHIRConverter()
+    // var ftv = HL7ToFHIRConverter() // test comment
     // var output: String = ftv.convert(hl7message) // generated a FHIR output
 
     private val modelClassFactory: ModelClassFactory = CanonicalModelClassFactory(HL7_SPEC_VERSION)
