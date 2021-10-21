@@ -409,7 +409,14 @@ class ReportFunction : Logging {
                     warnings += readResult.warnings
                     readResult.report
                 } catch (e: Exception) {
-                    errors.add(ResultDetail.report(InvalidReportMessage.new(e.message ?: "")))
+                    errors.add(
+                        ResultDetail.report(
+                            InvalidReportMessage.new(
+                                "An unexpected error occurred requiring additional help. Contact the ReportStream " +
+                                    "team at reportstream@cdc.gov."
+                            )
+                        )
+                    )
                     null
                 }
             }
@@ -434,7 +441,14 @@ class ReportFunction : Logging {
                     warnings += readResult.warnings
                     readResult.report
                 } catch (e: Exception) {
-                    errors.add(ResultDetail.report(InvalidReportMessage.new(e.message ?: "")))
+                    errors.add(
+                        ResultDetail.report(
+                            InvalidReportMessage.new(
+                                "An unexpected error occurred requiring " +
+                                    "additional help. Contact the ReportStream team at reportstream@cdc.gov."
+                            )
+                        )
+                    )
                     null
                 }
             }
