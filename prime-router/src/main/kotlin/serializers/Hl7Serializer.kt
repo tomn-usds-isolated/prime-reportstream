@@ -57,7 +57,7 @@ class Hl7Serializer(
 
     private val hl7SegmentDelimiter: String = "\r"
     private val hapiContext = DefaultHapiContext()
-    private val fhirContext = FhirContext.forR4();
+    private val fhirContext = FhirContext.forR4()
     // var ftv = HL7ToFHIRConverter()
     // var output: String = ftv.convert(hl7message) // generated a FHIR output
 
@@ -743,6 +743,7 @@ class Hl7Serializer(
         setComponentForTable(terser, element, element.hl7Field!!, report, row, config)
     }
 
+    //  comment for commit test
     private fun setComponentForTable(
         terser: Terser,
         element: Element,
