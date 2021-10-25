@@ -11,6 +11,11 @@
             <AppenderRef ref="Console"/>
         </Logger>
 
+        <Logger name="com.zaxxer.hikari" level="debug" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+
         <Logger name="gov.cdc.prime.router.transport.RedoxTransport" level="info"></Logger>
         <Logger name="gov.cdc.prime.router.credentials" level="info"></Logger>
         <!-- Setting to debug enables logging queries -->
