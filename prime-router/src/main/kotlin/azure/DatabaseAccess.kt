@@ -768,6 +768,8 @@ class DatabaseAccess(private val create: DSLContext) : Logging {
             // connection are closed
             // after about 10 minutes
             config.maxLifetime = 180000
+            System.out.println(String.format("Using environment variables for database %s with user %s and password %s", databaseUrl, user, password)) // ktlint-disable
+            System.out.println(String.format("Connecting to database %s with user %s and password %s", config.jdbcUrl, config.username, config.password)) // ktlint-disable
             val dataSource = HikariDataSource(config)
 
             val flyway = Flyway.configure().dataSource(dataSource).load()
