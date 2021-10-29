@@ -1,22 +1,13 @@
-##############
-# Key Vaults #
-##############
+# test
+# DNS server: 172.17.0.135
+# Address space: 172.17.5.0/25
 
 172.17.5.70 pdhtest-appconfig.vaultcore.azure.net pdhtest-appconfig.privatelink.vaultcore.azure.net
 172.17.5.69 pdhtest-clientconfig.vaultcore.azure.net pdhtest-clientconfig.privatelink.vaultcore.azure.net
 172.17.5.68 pdhtest-keyvault.vaultcore.azure.net pdhtest-keyvault.privatelink.vaultcore.azure.net
 
-
-#############
-# Databases #
-#############
-
 172.17.5.79  pdhtest-pgsql.postgres.database.azure.com pdhtest-pgsql.privatelink.postgres.database.azure.com
 172.17.5.196 pdhtest-pgsql-replica.postgres.database.azure.com pdhtest-pgsql-replica.privatelink.postgres.database.azure.com
-
-####################
-# Storage Accounts #
-####################
 
 172.17.5.77 pdhtestcandidate.blob.core.windows.net pdhtestcandidate.privatelink.blob.core.windows.net
 172.17.5.78 pdhtestcandidate.file.core.windows.net pdhtestcandidate.privatelink.file.core.windows.net
