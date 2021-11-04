@@ -4,6 +4,7 @@
 HERE="$(dirname "${0}")"
 VAULT_ENV_LOCAL_FILE=".vault/env/.env.local"
 DOCKER_COMPOSE_PREFIX="prime-router_"
+GRADLE_TASK="clean package"
 
 VERBOSE=0
 SHOW_HELP=0
@@ -14,6 +15,7 @@ KEEP_PRIME_CONTAINER_IMAGES=0
 KEEP_ALL=0
 PRUNE_VOLUMES=0
 TAKE_OWNERSHIP=0
+QUICK_PACKAGE=0
 
 function usage() {
   cat <<EOF
@@ -33,6 +35,7 @@ OPTIONS:
   --instructions            Shows post-run instructions
   --take-ownership        Change ownership of directories that are potentially
                             shared with container instances
+  --quick-package           Gradle will not run test and database migrations
   --verbose                 Get "more" output
   --help|-h                 Shows this help
 
@@ -270,8 +273,14 @@ function ensure_binaries() {
   if [[ ! -f "${CANARY?}" ]]; then
     ensure_build_dependencies
 
+    # Run gradle quickpackage when requested
+    if [[ ${QUICK_PACKAGE?} != 0 ]]; then
+      verbose "CAUTION: Running quickpackage for development purposes"
+      GRADLE_TASK=$(echo ${GRADLE_TASK?} | sed "s/package/quickpackage/g");
+    fi
+
     # Filter out some less valuable lines
-    ./gradlew clean package 2>&1 |
+    ./gradlew ${GRADLE_TASK?} 2>&1 |
       sed '/org.jooq.tools.JooqLogger info/d' |
       sed '/^@@@@@@@/d' |
       sed '/jOOQ tip of the day:/d' |
@@ -399,6 +408,9 @@ while [[ -n ${1} ]]; do
     ;;
   "--take-ownership")
     TAKE_OWNERSHIP=1
+    ;;
+  "--quick-package")
+    QUICK_PACKAGE=1
     ;;
   *)
     usage
