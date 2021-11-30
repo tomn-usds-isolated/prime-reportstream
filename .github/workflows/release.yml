@@ -108,6 +108,7 @@ jobs:
       RESOURCE_GROUP: prime-dev-rheft
       ACR_REPO: rkh5012containerregistry.azurecr.io
       PREFIX: rkh5012
+      CLIENT_ENV: development
     steps:
       - name: "Check out changes"
         uses: actions/checkout@v2
@@ -199,6 +200,7 @@ jobs:
       RESOURCE_GROUP: prime-data-hub-test
       ACR_REPO: pdhtestcontainerregistry.azurecr.io
       PREFIX: pdhtest
+      CLIENT_ENV: test
     steps:
       - name: "Check out changes"
         uses: actions/checkout@v2
@@ -291,6 +293,7 @@ jobs:
       RESOURCE_GROUP: prime-data-hub-staging
       ACR_REPO: pdhstagingcontainerregistry.azurecr.io
       PREFIX: pdhstaging
+      CLIENT_ENV: staging
     steps:
       - name: "Check out changes"
         uses: actions/checkout@v2
@@ -383,6 +386,7 @@ jobs:
       RESOURCE_GROUP: prime-data-hub-prod
       ACR_REPO: pdhprodcontainerregistry.azurecr.io
       PREFIX: pdhprod
+      CLIENT_ENV: production
     steps:
       - name: "Check out changes"
         uses: actions/checkout@v2
