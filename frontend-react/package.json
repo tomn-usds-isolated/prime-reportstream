@@ -51,8 +51,8 @@
     "scripts": {
         "clean": "rimraf ./build",
         "start": "craco start",
-        "build:staging": "REACT_APP_ENV=staging INLINE_RUNTIME_CHUNK=false GENERATE_SOURCEMAP=true env-cmd -f .env.staging craco build",
-        "build": "INLINE_RUNTIME_CHUNK=false craco build",
+        "build:staging": "env-cmd -f .env.staging craco build",
+        "build:release": "env-cmd -f .env.production craco build",
         "postbuild": "cp build/index.html build/404.html",
         "test": "react-scripts test",
         "eject": "react-scripts eject",
