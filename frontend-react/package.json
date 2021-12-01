@@ -3,6 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "npmClient": "yarn",
+    "proxy": "http://localhost:7071",
     "dependencies": {
         "@craco/craco": "^6.4.0",
         "@fortawesome/fontawesome-svg-core": "^1.2.36",
@@ -24,6 +25,7 @@
         "craco-sass-resources-loader": "^1.1.0",
         "dompurify": "^2.3.3",
         "downloadjs": "^1.4.7",
+        "env-cmd": "^10.1.0",
         "eslint-config-airbnb-base": "^15.0.0",
         "font-awesome": "^4.7.0",
         "hookrouter": "^1.2.5",
@@ -48,7 +50,8 @@
     },
     "scripts": {
         "clean": "rimraf ./build",
-        "start": "react-scripts start",
+        "start": "craco start",
+        "build:staging": "REACT_APP_ENV=staging INLINE_RUNTIME_CHUNK=false GENERATE_SOURCEMAP=true env-cmd -f .env.staging craco build",
         "build": "INLINE_RUNTIME_CHUNK=false craco build",
         "postbuild": "cp build/index.html build/404.html",
         "test": "react-scripts test",
